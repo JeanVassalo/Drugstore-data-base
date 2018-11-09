@@ -1,0 +1,246 @@
+-- CRIAÇÃO DAS TABELAS
+----------------------------------------------------------------------
+------------------
+create table FARMACIA(
+cnpj_farmacia char(14),
+nome_farmacia varchar(40),
+tel_farmacia char(10),
+end_farmacia char(50)
+);
+create table PRODUTO(
+cod_produto char(4),
+qtd_produto numeric(5,2),
+valor_produto numeric(7,2),
+cnpj_farmacia char(14)
+);
+create table FARMACEUTICO(
+rg_farmaceutico char(10),
+nome_farmaceutico char(80),
+cnpj_farmacia char(14)
+);
+---------------------------------------
+
+
+CREATE EXCEPTION E_FARMACIA_NOT_NULL
+'O CNPJ da Farmácia não pode ser nulo.';
+CREATE EXCEPTION E_FARMACIA_DUPLICATE_PK
+'O CNPJ já existe.';
+CREATE EXCEPTION E_NOME_FAMACIA_DUPLICATE
+'O nome da farmácia já existe.';
+
+
+
+CREATE EXCEPTION E_FARMACEUTICO_NOT_NULL
+'O RG do FARMACEUTICO não pode ser nulo.';
+CREATE EXCEPTION E_FARMACEUTICO_DUPLICATE_PK
+'Rg já existe.';
+CREATE EXCEPTION E_FARMACEUTICO_FK
+'Este CNPJ não existe na tabela FARMACIA.';
+
+
+
+CREATE EXCEPTION E_PRODUTO_NOT_NULL
+'O código do produto não pode ser nulo.';
+CREATE EXCEPTION E_PRODUTO_DUPLICATE_PK
+'O código do produto já existe.';
+CREATE EXCEPTION E_PRODUTO_FK
+'Este CNPJ não existe na tabela FARMACIA.';
+CREATE EXCEPTION E_QTD_PRODUTO_NEG
+'A Quantidade do produto não pode ser negativa.';
+
+---------------------------
+trigger farmacia pk
+--------------
+
+SET TERM ^ ;
+CREATE TRIGGER TRG_FARMACIA_PK FOR FARMACIA
+ACTIVE
+BEFORE INSERT OR UPDATE POSITION 0
+AS
+declare variable v_cnpj char(14);
+BEGIN
+if (new.CNPJ_FARMACIA is null) then
+exception E_FARMACIA_NOT_NULL;
+else
+begin
+select F.CNPJ_FARMACIA
+from FARMACIA F
+where F.CNPJ_FARMACIA = new.CNPJ_FARMACIA
+into v_cnpj;
+if (inserting and v_cnpj is not null) then
+exception E_FARMACIA_DUPLICATE_PK;
+else if (updating and new.CNPJ_FARMACIA = v_cnpj) then
+exception E_FARMACIA_DUPLICATE_PK;
+end
+
+begin
+select F.NOME_FARMACIA
+from FARMACIA F
+where F.NOME_FARMACIA = new.NOME_FARMACIA
+into v_nome;
+if (inserting and v_nome is not null) then
+exception E_NOME_FAMACIA_DUPLICATE;
+else if (updating and new.NOME_FARMACIA = v_nome) then
+exception E_NOME_FAMACIA_DUPLICATE;
+end
+
+END^
+SET TERM ; ^
+
+-----------------
+trigger farmaceuttico pk
+---------------
+SET TERM ^ ;
+CREATE TRIGGER TRG_FARMACEUTICO_PK FOR FARMACEUTICO ACTIVE
+BEFORE INSERT OR UPDATE POSITION 0
+AS
+declare variable v_rg char(10);
+BEGIN
+if (new.RG_FARMACEUTICO is null) then
+exception E_FARMACEUTICO_NOT_NULL;
+else
+begin
+select F.RG_FARMACEUTICO
+from FARMACEUTICO F
+where F.RG_FARMACEUTICO = new.RG_FARMACEUTICO
+into v_rg;
+if (inserting and v_rg is not null) then
+exception E_FARMACEUTICO_DUPLICATE_PK;
+else if (updating and new.RG_FARMACEUTICO = v_rg) then
+exception E_FARMACEUTICO_DUPLICATE_PK;
+end
+END^
+SET TERM ; ^
+
+------------
+trigger famaceutico fk
+------------
+SET TERM ^ ;
+CREATE TRIGGER TRG_FARMACEUTICO_CNPJ_FK FOR FARMACEUTICO ACTIVE
+BEFORE INSERT OR UPDATE POSITION 0
+AS
+declare variable v_cnpj char(14);
+
+BEGIN
+if (new.CNPJ_FARMACIA is not null) then
+begin
+select F.CNPJ_FARMACIA
+from FARMACIA F
+where F.CNPJ_FARMACIA = new.CNPJ_FARMACIA
+into v_cnpj;
+if (v_cnpj is null) then
+exception E_FARMACEUTICO_FK;
+end 
+else exception E_FARMACIA_NOT_NULL;
+
+
+END^
+SET TERM ; ^
+
+------------------
+trigger PRODUTO PK
+-----------------
+SET TERM ^ ;
+CREATE TRIGGER TRG_PRODUTO_PK FOR PRODUTO
+ACTIVE
+BEFORE INSERT OR UPDATE POSITION 0
+AS
+declare variable v_cod char(14);
+BEGIN
+if (new.COD_PRODUTO is null) then
+exception E_PRODUTO_NOT_NULL;
+else
+begin
+select P.COD_PRODUTO
+from PRODUTO P
+where P.COD_PRODUTO = new.COD_PRODUTO
+into v_cod;
+if (inserting and v_cod is not null) then
+exception E_PRODUTO_DUPLICATE_PK;
+else if (updating and new.CNPJ_FARMACIA = v_cod) then
+exception E_PRODUTO_DUPLICATE_PK;
+end
+
+
+
+END^
+SET TERM ; ^
+
+-----------------
+TRIGGER PRODUTO FK
+-----------------
+
+SET TERM ^ ;
+ALTER TRIGGER TRG_PRODUTO_CNPJ_FK ACTIVE
+BEFORE insert OR update POSITION 0
+AS
+declare variable v_cnpj char(14);
+
+BEGIN
+if (new.CNPJ_FARMACIA is not null) then
+begin
+select F.CNPJ_FARMACIA
+from FARMACIA F
+where F.CNPJ_FARMACIA = new.CNPJ_FARMACIA
+into v_cnpj;
+if (v_cnpj is null) then
+exception E_PRODUTO_FK;
+end 
+else exception E_FARMACIA_NOT_NULL;
+
+
+END^
+SET TERM ; ^
+
+------------------
+TRIGGER QTD NEG
+------------------
+
+SET TERM ^ ;
+CREATE TRIGGER TRG_PRODUTO_QTD_NEG FOR PRODUTO
+ACTIVE
+BEFORE INSERT OR UPDATE POSITION 0
+AS
+
+BEGIN
+
+if (inserting and new.QTD_PRODUTO < 0) then
+exception E_QTD_PRODUTO_NEG;
+else if (updating and new.QTD_PRODUTO < 0) then
+exception E_QTD_PRODUTO_NEG;
+
+
+END^
+SET TERM ; ^
+
+
+----------------------
+GENERATOR COD_PRODUTO
+----------------------
+
+
+SET TERM ^ ;
+create TRIGGER PRODUTO_CONT ACTIVE
+BEFORE insert POSITION 0
+AS 
+
+declare variable aux numeric (4);
+
+
+BEGIN 
+    IF (NEW.COD_PRODUTO is not null ) then
+        begin
+   
+        select max(p.COD_PRODUTO)
+        from PRODUTO P
+        into aux;
+    
+            if (aux is null) then
+                new.COD_PRODUTO = 1;
+            else
+                new.COD_PRODUTO = aux + 1;
+        end
+  
+  
+END^
+SET TERM ; ^
